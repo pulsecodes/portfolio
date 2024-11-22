@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ubuntu Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Ubuntu', sans-serif;
+            overflow: hidden;
+            background: url('https://cdn.neowin.com/news/images/uploaded/2024/03/1710851029_numbat_wallpaper_color_3480x2160.jpg');
+            background-size: cover;
+            background-position: center;
+        }
+
+        .desktop {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        .top-bar {
+            height: 32px;
+            background: rgba(0, 0, 0, 0.85);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 15px;
+            color: white;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .dock {
+            position: fixed;
+            left: 0;
+            top: 32px;
+            bottom: 0;
+            width: 68px;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 10px;
+            z-index: 999;
+            backdrop-filter: blur(10px);
+        }
+
+        .dock-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background-size: contain;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .dock-icon:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 10px rgba(255,255,255,0.3);
+        }
+
+        .terminal-icon {
+            background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/d/da/GNOME_Terminal_icon_2019.svg/1024px-GNOME_Terminal_icon_2019.svg.png');
+        }
+
+        .calculator-icon {
+             background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/b/bc/GNOME_Calculator_icon_2018.svg/768px-GNOME_Calculator_icon_2018.svg.png');
+        }
+
+        .window {
+            position: absolute;
+            background: rgba(32, 32, 32, 0.95);
+            border-radius: 8px;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.5);
+            display: none;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        #terminal {
+            min-width: 700px;
+            min-height: 400px;
+        }
+
+        #calculator {
+            width: 300px;
+        }
+
+        .window-header {
+            background: rgba(48, 48, 48, 0.95);
+            padding: 8px;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+        }
+
+        .window-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .window-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .control-btn {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .close { background: #ff5f57; }
+        .minimize { background: #febc2e; }
+        .maximize { background: #28c941; }
+
+        .window-content {
+            padding: 15px;
+            color: #ffffff;
+        }
+
+        .terminal-content {
+            font-family: monospace;
+            font-size: 14px;
+            height: calc(100% - 40px);
+            overflow-y: auto;
+        }
+
+        .command-line {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .prompt {
+            color: #4cd137;
+        }
+
+        .command-input {
+            background: transparent;
+            border: none;
+            color: white;
+            font-family: monospace;
+            font-size: 14px;
+            flex-grow: 1;
+            outline: none;
+        }
+
+        .calculator-content {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+            padding: 10px;
+        }
+
+        .calc-display {
+            grid-column: span 4;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            text-align: right;
+            font-size: 24px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            min-height: 60px;
+        }
+
+        .calc-btn {
+            padding: 15px;
+            border: none;
+            background: rgba(60, 60, 60, 0.95);
+            color: white;
+            font-size: 18px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .calc-btn:hover {
+            background: rgba(80, 80, 80, 0.95);
+        }
+
+        .calc-btn.operator {
+            background: rgba(255, 159, 0, 0.95);
+        }
+
+        .calc-btn.span-2 {
+            grid-column: span 2;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 15px;
+            background: white;
+            margin-left: 2px;
+            animation: blink 1s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="desktop">
+        <div class="top-bar">
+            <div class="activities">Apps</div>
+            <div class="datetime">Tue 11:42 PM</div>
+        </div>
+
+        <div class="dock">
+            <div class="dock-icon terminal-icon" title="Terminal"></div>
+            <div class="dock-icon calculator-icon" title="Calculator"></div>
+        </div>
+
+        <div class="window" id="terminal">
+            <div class="window-header">
+                <div class="window-title">Terminal</div>
+                <div class="window-controls">
+                    <div class="control-btn minimize"></div>
+                    <div class="control-btn maximize"></div>
+                    <div class="control-btn close"></div>
+                </div>
+            </div>
+            <div class="window-content">
+                <div class="terminal-content">
+                    <div class="command-line">
+                        <span class="prompt">user@ubuntu:~$</span>
+                        <input type="text" class="command-input" autofocus="">
+                        <span class="cursor"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="window" id="calculator">
+            <div class="window-header">
+                <div class="window-title">Calculator</div>
+                <div class="window-controls">
+                    <div class="control-btn minimize"></div>
+                    <div class="control-btn maximize"></div>
+                    <div class="control-btn close"></div>
+                </div>
+            </div>
+            <div class="window-content">
+                <div class="calc-display">0</div>
+                <div class="calculator-content">
+                    <button class="calc-btn">C</button>
+                    <button class="calc-btn">±</button>
+                    <button class="calc-btn">%</button>
+                    <button class="calc-btn operator">÷</button>
+                    <button class="calc-btn">7</button>
+                    <button class="calc-btn">8</button>
+                    <button class="calc-btn">9</button>
+                    <button class="calc-btn operator">×</button>
+                    <button class="calc-btn">4</button>
+                    <button class="calc-btn">5</button>
+                    <button class="calc-btn">6</button>
+                    <button class="calc-btn operator">-</button>
+                    <button class="calc-btn">1</button>
+                    <button class="calc-btn">2</button>
+                    <button class="calc-btn">3</button>
+                    <button class="calc-btn operator">+</button>
+                    <button class="calc-btn span-2">0</button>
+                    <button class="calc-btn">.</button>
+                    <button class="calc-btn operator">=</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updateDateTime() {
+            const now = new Date();
+            const options = { weekday: 'short', hour: '2-digit', minute: '2-digit' };
+            document.querySelector('.datetime').textContent = now.toLocaleString('en-US', options);
+        }
+        setInterval(updateDateTime, 1000);
+        updateDateTime();
+
+        let activeWindow = null;
+        let isDragging = false;
+        let offset = { x: 0, y: 0 };
+
+        function makeWindowDraggable(window) {
+            const header = window.querySelector('.window-header');
+            
+            header.addEventListener('mousedown', (e) => {
+                if (e.target.classList.contains('control-btn')) return;
+                isDragging = true;
+                activeWindow = window;
+                offset.x = e.clientX - window.offsetLeft;
+                offset.y = e.clientY - window.offsetTop;
+                window.style.zIndex = 1000;
+            });
+        }
+
+        document.addEventListener('mousemove', (e) => {
+            if (isDragging && activeWindow) {
+                const newX = e.clientX - offset.x;
+                const newY = e.clientY - offset.y;
+                activeWindow.style.left = Math.max(68, newX) + 'px';
+                activeWindow.style.top = Math.max(32, newY) + 'px';
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        const commands = {
+            help: `Available commands:
+    help     - Show this help message
+    clear    - Clear the terminal
+    date     - Show current date and time
+    ls       - List directory contents
+    pwd      - Print working directory
+    whoami   - Print current user
+    uname    - Print system information`,
+            
+            date: () => new Date().toString(),
+            ls: `Desktop Documents Downloads Music Pictures Public Templates Videos`,
+            pwd: `/home/user`,
+            whoami: `user`,
+            uname: `Linux ubuntu 5.15.0-92-generic #102-Ubuntu SMP Oct 12 2023 x86_64 GNU/Linux`,
+        };
+
+        const commandInput = document.querySelector('.command-input');
+        commandInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const command = commandInput.value.trim();
+                const terminalContent = document.querySelector('.terminal-content');
+                
+                const commandLine = document.createElement('div');
+                commandLine.textContent = `user@ubuntu:~$ ${command}`;
+                terminalContent.appendChild(commandLine);
+
+                if (command === 'clear') {
+                    terminalContent.innerHTML = '';
+                } else if (command) {
+                    const response = document.createElement('div');
+                    response.textContent = commands[command] || `Command '${command}' not found`;
+                    if (typeof commands[command] === 'function') {
+                        response.textContent = commands[command]();
+                    }
+                    terminalContent.appendChild(response);
+                }
+
+                const newCommandLine = document.createElement('div');
+                newCommandLine.className = 'command-line';
+                newCommandLine.innerHTML = `
+                    <span class="prompt">user@ubuntu:~$</span>
+                    <input type="text" class="command-input">
+                    <span class="cursor"></span>
+                `;
+                terminalContent.appendChild(newCommandLine);
+                const newInput = newCommandLine.querySelector('.command-input');
+                newInput.focus();
+                commandInput.value = '';
+            }
+        });
+
+        let displayValue = '0';
+        let firstOperand = null;
+        let operator = null;
+        let waitingForSecondOperand = false;
+
+        const calculator = {
+            add: (a, b) => a + b,
+            subtract: (a, b) => a - b,
+            multiply: (a, b) => a * b,
+            divide: (a, b) => b !== 0 ? a / b : 'Error'
+        };
+
+        document.querySelectorAll('.calc-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                const value = button.textContent;
+                const display = document.querySelector('.calc-display');
+
+                if ('0123456789.'.includes(value)) {
+                    if (waitingForSecondOperand) {
+                        displayValue = value;
+                        waitingForSecondOperand = false;
+                    } else {
+                        displayValue = displayValue === '0' ? value : displayValue + value;
+                    }
+                } else if ('+-×÷'.includes(value)) {
+                    firstOperand = parseFloat(displayValue);
+                    operator = value;
+                    waitingForSecondOperand = true;
+                } else if (value === '=') {
+                    const secondOperand = parseFloat(displayValue);
+                    if (operator && !waitingForSecondOperand) {
+                        const result = calculator[{
+                            '+': 'add',
+                            '-': 'subtract',
+                            '×': 'multiply',
+                            '÷': 'divide'
+                        }[operator]](firstOperand, secondOperand);
+                        displayValue = result.toString();
+                        operator = null;
+                        firstOperand = null;
+                        waitingForSecondOperand = true;
+                    }
+                } else if (value === 'C') {
+                    displayValue = '0';
+                    firstOperand = null;
+                    operator = null;
+                    waitingForSecondOperand = false;
+                }
+
+                display.textContent = displayValue;
+            });
+        });
+
+        const terminal = document.getElementById('terminal');
+        const calc = document.getElementById('calculator');
+        makeWindowDraggable(terminal);
+        makeWindowDraggable(calc);
+
+        document.querySelector('.terminal-icon').addEventListener('click', () => {
+            terminal.style.display = 'block';
+            if (!terminal.style.left) {
+                terminal.style.left = '100px';
+                terminal.style.top = '50px';
+            }
+        });
+
+        document.querySelector('.calculator-icon').addEventListener('click', () => {
+            calc.style.display = 'block';
+            if (!calc.style.left) {
+                calc.style.left = '120px';
+                calc.style.top = '70px';
+            }
+        });
+
+        document.querySelectorAll('.close').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.target.closest('.window').style.display = 'none';
+            });
+        });
+    </script>
+
+
+</body></html>
